@@ -12,13 +12,17 @@
    streamlit run app.py
    ```
 
-3. **Login with Demo Credentials**
-   - Regular User: `user1` / `user123`
-   - IT Staff: `it1` / `it123`
+3. **Test as a User (No Login Required)**
+   - Open the app in your browser (usually http://localhost:8501)
+   - Select SAP or Botree ticket type
+   - Fill in the required fields
+   - Submit ticket and note your Ticket ID
 
-4. **Test the System**
-   - As a regular user: Submit a ticket
-   - As IT staff: View and close tickets
+4. **Test as IT Staff**
+   - Click "IT Staff Login" in the sidebar
+   - Login with: `it1` / `it123`
+   - View tickets, filter by status
+   - Close open tickets with action details
    
    Note: Without Google Sheets setup, data will be stored in local CSV files.
 
@@ -50,7 +54,7 @@
 4. Select "JSON"
 5. Download the file
 6. **Rename to `credentials.json`**
-7. **Move to the `nilons_ticketing` folder**
+7. **Move to the same folder as `app.py`**
 
 ### Step 4: Google Sheet Setup
 
@@ -65,8 +69,6 @@
 ### Step 5: Run the Application
 
 ```bash
-cd nilons_ticketing
-pip install -r requirements.txt
 streamlit run app.py
 ```
 
@@ -74,33 +76,54 @@ streamlit run app.py
 
 ## User Guide
 
-### For Regular Users
+### For Regular Users (No Login Required)
 
-1. **Login** with your credentials
-2. **Select Ticket Type**: Choose SAP or Botree
-3. **Fill in the Form**:
+1. **Open the Application**
+   - Navigate to the app URL
+   - No login needed!
+
+2. **Select Ticket Type**
+   - Choose SAP or Botree
+
+3. **Fill in Required Fields** (marked with *):
    - Type of Query
-   - SS/DB/DP Name and Code
-   - City and State
+   - SS/DB/DP Name
    - Incident Category (dropdown)
    - Subject (detailed description)
    - Call Received From
-4. **Submit** the ticket
-5. Note your **Ticket ID** for future reference
+
+4. **Optional Fields** (can be left blank):
+   - SS/DB/DP Code
+   - City
+   - State
+
+5. **Submit the Ticket**
+   - Click "Submit Ticket"
+   - Note your **Ticket ID** for future reference
+   - The ticket is automatically timestamped
 
 ### For IT Staff
 
-1. **Login** with IT credentials
-2. **Navigate** to "View Tickets"
-3. **Select** ticket type (SAP or Botree)
-4. **Filter** by status (All/Open/Closed)
-5. **Expand** a ticket to view details
-6. **Close Ticket**:
-   - Enter "Action Taken"
+1. **Login**
+   - Click "IT Staff Login" in the sidebar
+   - Enter your IT credentials
+
+2. **View Tickets**
+   - Navigate to "View Tickets"
+   - Select ticket type (SAP or Botree)
+   - Filter by status (All/Open/Closed)
+
+3. **Close a Ticket**
+   - Expand an open ticket
+   - Scroll to the bottom
+   - Enter "Action Taken" description
    - Click "Close Ticket"
    - System automatically records:
      - Your username
      - Closing date and time
+
+4. **Submit Tickets**
+   - IT staff can also submit tickets via "Submit New Ticket"
 
 ---
 
@@ -111,7 +134,7 @@ streamlit run app.py
 - Check the filename is exactly `credentials.json`
 
 ### "Spreadsheet not found"
-- Verify the Google Sheet is named "Nilons IT Tickets"
+- Verify the Google Sheet is named exactly "Nilons IT Tickets"
 - Check the service account has access to the sheet
 
 ### "Permission denied"
@@ -122,28 +145,81 @@ streamlit run app.py
 - Install dependencies: `pip install -r requirements.txt`
 - Check Python version (3.8 or higher recommended)
 
+### Can't submit tickets
+- Check all required fields (marked with *) are filled
+- Verify internet connection if using Google Sheets
+
+### IT Login Issues
+- Verify username and password are correct
+- Check `IT_STAFF` dictionary in app.py
+
 ---
 
-## Default Demo Accounts
+## Default IT Staff Accounts
 
-### Regular Users
-| Username | Password | Role |
-|----------|----------|------|
-| user1    | user123  | User |
-| user2    | user123  | User |
+| Username | Password | Name      |
+|----------|----------|-----------|
+| it1      | it123    | IT Staff 1|
+| it2      | it123    | IT Staff 2|
+| admin    | admin123 | Admin     |
 
-### IT Staff
-| Username | Password | Role |
-|----------|----------|------|
-| it1      | it123    | IT   |
-| admin    | admin123 | IT   |
+**⚠️ IMPORTANT**: Change these credentials before production deployment!
 
-**Important**: Change these credentials in production!
+---
+
+## Ticket Field Breakdown
+
+### Always Required:
+- Type of Query
+- SS/DB/DP Name
+- Incident Category
+- Subject
+- Call Received From
+
+### Optional (Can Be Blank):
+- SS/DB/DP Code
+- City
+- State
+
+### Auto-Generated:
+- Ticket ID
+- Received Date & Time
+- Status (Open → Closed)
+- IT Member Assigned (on close)
+- Closing Date & Time (on close)
+
+---
+
+## Key Features
+
+✅ **No Login for Users** - Quick and easy ticket submission  
+🔐 **Secure IT Portal** - Authentication required for ticket management  
+📊 **Real-time Sync** - Automatic Google Sheets integration  
+📋 **Two Systems** - Support for both SAP and Botree  
+🎫 **Unique Ticket IDs** - Timestamp-based tracking  
+✨ **Professional UI** - Clean, modern interface  
+💾 **Fallback Storage** - Works with or without Google Sheets  
 
 ---
 
 ## Support
 
-For technical issues, contact your system administrator.
+For technical issues:
+- Check the troubleshooting section above
+- Review the detailed README.md file
+- Contact your system administrator
 
-For Google Sheets issues, refer to the detailed README.md file.
+For Google Sheets issues:
+- Verify service account permissions
+- Check API enablement
+- Ensure spreadsheet is shared correctly
+
+---
+
+## Next Steps
+
+1. ✅ Test the application locally
+2. ✅ Set up Google Sheets integration
+3. ✅ Customize IT staff accounts
+4. ✅ Update incident categories if needed
+5. ✅ Deploy to production server

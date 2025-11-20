@@ -67,6 +67,20 @@ st.markdown("""
     div[data-testid="stSidebar"] {
         background-color: #f9fafb;
     }
+    .success-box {
+        background-color: #d1fae5;
+        border-left: 4px solid #10b981;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+    }
+    .info-box {
+        background-color: #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -75,14 +89,14 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_role = None
     st.session_state.username = None
+if 'page' not in st.session_state:
+    st.session_state.page = 'submit'
 
-# Dummy user database (in production, use a proper database)
-USERS = {
-    'user1': {'password': 'user123', 'role': 'user'},
-    'user2': {'password': 'user123', 'role': 'user'},
-    'it1': {'password': 'it123', 'role': 'it'},
-    'it2': {'password': 'it123', 'role': 'it'},
-    'admin': {'password': 'admin123', 'role': 'it'}
+# IT staff credentials (in production, use a proper database)
+IT_STAFF = {
+    'it1': {'password': 'it123', 'name': 'IT Staff 1'},
+    'it2': {'password': 'it123', 'name': 'IT Staff 2'},
+    'admin': {'password': 'admin123', 'name': 'Admin'},
 }
 
 # Incident categories
@@ -289,60 +303,23 @@ def update_ticket_in_csv(ticket_id, ticket_type, it_member, action_taken, closin
         return True
     return False
 
-def login_page():
-    """Display login page"""
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("<h1 class='main-header'>🎫 Nilons IT Ticketing System</h1>", unsafe_allow_html=True)
-        st.markdown("<p class='sub-header'>Secure Access Portal</p>", unsafe_allow_html=True)
-        
-        with st.container():
-            st.markdown("<div class='ticket-card'>", unsafe_allow_html=True)
-            
-            username = st.text_input("Username", placeholder="Enter your username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
-            
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if st.button("🔐 Login", use_container_width=True):
-                    if username in USERS and USERS[username]['password'] == password:
-                        st.session_state.logged_in = True
-                        st.session_state.user_role = USERS[username]['role']
-                        st.session_state.username = username
-                        st.rerun()
-                    else:
-                        st.error("Invalid username or password")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.info("""
-            **Demo Credentials:**
-            
-            **Regular Users:**
-            - username: `user1`, password: `user123`
-            - username: `user2`, password: `user123`
-            
-            **IT Staff:**
-            - username: `it1`, password: `it123`
-            - username: `admin`, password: `admin123`
-            """)
-
 def submit_ticket_page():
-    """Page for submitting tickets"""
-    st.markdown("<h1 class='main-header'>📝 Submit New Ticket</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='sub-header'>Fill in the details below to create a support ticket</p>", unsafe_allow_html=True)
+    """Page for submitting tickets (accessible to everyone)"""
+    st.markdown("<h1 class='main-header'>Nilons IT Ticketing System</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='sub-header'>Submit a support ticket for IT assistance</p>", unsafe_allow_html=True)
     
     # Ticket type selection
+    st.markdown("### Select Ticket Type")
     ticket_type = st.radio(
-        "Select Ticket Type",
+        "Choose the system your issue is related to:",
         ["SAP", "Botree"],
         horizontal=True,
-        help="Choose the system your issue is related to"
+        label_visibility="collapsed"
     )
     
     st.markdown("---")
+    st.markdown("### Ticket Details")
+    st.markdown("Fields marked with * are required")
     
     with st.form("ticket_form"):
         col1, col2 = st.columns(2)
@@ -350,22 +327,22 @@ def submit_ticket_page():
         with col1:
             type_of_query = st.text_input("Type of Query *", help="Brief description of query type")
             ss_db_dp_name = st.text_input("SS/DB/DP Name *", help="Enter the name")
-            ss_db_dp_code = st.text_input("SS/DB/DP Code *", help="Enter the code")
-            city = st.text_input("City *", help="Enter city")
+            ss_db_dp_code = st.text_input("SS/DB/DP Code", help="Enter the code (optional)")
+            city = st.text_input("City", help="Enter city (optional)")
         
         with col2:
-            state = st.text_input("State *", help="Enter state")
+            state = st.text_input("State", help="Enter state (optional)")
             incident_category = st.selectbox("Incident Category *", INCIDENT_CATEGORIES)
-            call_received_from = st.text_input("Call Received From *", help="Name of the person")
+            call_received_from = st.text_input("Call Received From *", help="Name of the person reporting the issue")
         
-        subject = st.text_area("Subject *", help="Detailed description of the issue", height=100)
+        subject = st.text_area("Subject *", help="Detailed description of the issue", height=150)
         
-        submit_button = st.form_submit_button("🚀 Submit Ticket", use_container_width=True)
+        submit_button = st.form_submit_button("Submit Ticket", use_container_width=True)
         
         if submit_button:
             # Validate required fields
-            if not all([type_of_query, ss_db_dp_name, ss_db_dp_code, city, state, subject, call_received_from]):
-                st.error("Please fill in all required fields marked with *")
+            if not all([type_of_query, ss_db_dp_name, subject, call_received_from]):
+                st.error("❌ Please fill in all required fields marked with *")
             else:
                 # Generate ticket ID
                 now = datetime.now()
@@ -376,9 +353,9 @@ def submit_ticket_page():
                     'ticket_id': ticket_id,
                     'type_of_query': type_of_query,
                     'ss_db_dp_name': ss_db_dp_name,
-                    'ss_db_dp_code': ss_db_dp_code,
-                    'city': city,
-                    'state': state,
+                    'ss_db_dp_code': ss_db_dp_code if ss_db_dp_code else '',
+                    'city': city if city else '',
+                    'state': state if state else '',
                     'incident_category': incident_category,
                     'subject': subject,
                     'call_received_from': call_received_from,
@@ -393,15 +370,65 @@ def submit_ticket_page():
                 
                 # Save ticket
                 if save_ticket_to_sheets(ticket_data, ticket_type):
-                    st.success(f"✅ Ticket submitted successfully! Ticket ID: **{ticket_id}**")
+                    st.markdown(f"""
+                    <div class='success-box'>
+                        <h3>✅ Ticket Submitted Successfully!</h3>
+                        <p style='font-size: 1.1rem; margin: 0.5rem 0;'>
+                            <strong>Ticket ID:</strong> <code style='background: #065f46; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem;'>{ticket_id}</code>
+                        </p>
+                        <p style='margin: 0.5rem 0;'>Your ticket has been recorded and assigned to our IT team. 
+                        Please save this Ticket ID for future reference.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                     st.balloons()
                 else:
-                    st.error("Failed to submit ticket. Please try again.")
+                    st.error("❌ Failed to submit ticket. Please try again or contact IT support.")
+
+def it_login_page():
+    """Login page for IT staff"""
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("<h1 class='main-header'>🔐 IT Staff Login</h1>", unsafe_allow_html=True)
+        st.markdown("<p class='sub-header'>Access Ticket Management Portal</p>", unsafe_allow_html=True)
+        
+        with st.container():
+            st.markdown("<div class='ticket-card'>", unsafe_allow_html=True)
+            
+            username = st.text_input("Username", placeholder="Enter your IT username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            
+            col_a, col_b = st.columns([3, 2])
+            with col_a:
+                if st.button("🔐 Login", use_container_width=True):
+                    if username in IT_STAFF and IT_STAFF[username]['password'] == password:
+                        st.session_state.logged_in = True
+                        st.session_state.user_role = 'it'
+                        st.session_state.username = username
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid username or password")
+            
+            with col_b:
+                if st.button("← Back", use_container_width=True):
+                    st.session_state.page = 'submit'
+                    st.rerun()
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.markdown("""
+            <div class='info-box'>
+                <strong>ℹ️ IT Staff Only</strong><br>
+                This portal is for IT staff to manage and close tickets.
+                Regular users can submit tickets without logging in.
+            </div>
+            """, unsafe_allow_html=True)
 
 def view_tickets_page():
     """Page for IT staff to view and manage tickets"""
-    st.markdown("<h1 class='main-header'>🎯 Ticket Management</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='sub-header'>View and manage support tickets</p>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-header'>Ticket Management Portal</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p class='sub-header'>Welcome, {IT_STAFF[st.session_state.username]['name']}</p>", unsafe_allow_html=True)
     
     # Ticket type filter
     ticket_type = st.radio(
@@ -423,102 +450,142 @@ def view_tickets_page():
     df = get_tickets_from_sheets(ticket_type)
     
     if df.empty:
-        st.info(f"No {ticket_type} tickets found.")
+        st.info(f"📭 No {ticket_type} tickets found.")
         return
     
     # Apply status filter
     if status_filter != "All":
         df = df[df['Status'] == status_filter]
     
+    if df.empty:
+        st.info(f"📭 No {status_filter.lower()} {ticket_type} tickets found.")
+        return
+    
     # Display metrics
+    all_tickets = get_tickets_from_sheets(ticket_type)
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total Tickets", len(df))
+        st.metric("Total Tickets", len(all_tickets))
     with col2:
-        open_tickets = len(df[df['Status'] == 'Open']) if 'Status' in df.columns else 0
+        open_tickets = len(all_tickets[all_tickets['Status'] == 'Open']) if 'Status' in all_tickets.columns else 0
         st.metric("Open Tickets", open_tickets)
     with col3:
-        closed_tickets = len(df[df['Status'] == 'Closed']) if 'Status' in df.columns else 0
+        closed_tickets = len(all_tickets[all_tickets['Status'] == 'Closed']) if 'Status' in all_tickets.columns else 0
         st.metric("Closed Tickets", closed_tickets)
     
     st.markdown("---")
+    st.markdown(f"### Showing {len(df)} {status_filter if status_filter != 'All' else ''} Ticket(s)")
     
     # Display tickets
     for idx, row in df.iterrows():
-        with st.expander(f"🎫 {row['Ticket ID']} - {row['Incident Category']} ({row['Status']})"):
+        status_class = "status-open" if row['Status'] == 'Open' else "status-closed"
+        
+        with st.expander(f"{row['Ticket ID']} - {row['Incident Category']} - {row['Received Date']}"):
+            # Status badge
+            st.markdown(f"<span class='{status_class}'>{row['Status']}</span>", unsafe_allow_html=True)
+            st.markdown("---")
+            
             col1, col2 = st.columns(2)
             
             with col1:
+                st.markdown("**📋 Ticket Information**")
                 st.markdown(f"**Type of Query:** {row['Type of Query']}")
                 st.markdown(f"**SS/DB/DP Name:** {row['SS/DB/DP Name']}")
-                st.markdown(f"**SS/DB/DP Code:** {row['SS/DB/DP Code']}")
-                st.markdown(f"**City:** {row['City']}")
-                st.markdown(f"**State:** {row['State']}")
+                st.markdown(f"**SS/DB/DP Code:** {row['SS/DB/DP Code'] if row['SS/DB/DP Code'] else 'N/A'}")
+                st.markdown(f"**City:** {row['City'] if row['City'] else 'N/A'}")
+                st.markdown(f"**State:** {row['State'] if row['State'] else 'N/A'}")
+                st.markdown(f"**Incident Category:** {row['Incident Category']}")
                 st.markdown(f"**Call Received From:** {row['Call Received From']}")
             
             with col2:
-                st.markdown(f"**Incident Category:** {row['Incident Category']}")
+                st.markdown("**📅 Timeline**")
                 st.markdown(f"**Received Date:** {row['Received Date']}")
                 st.markdown(f"**Received Time:** {row['Received Time']}")
                 if row['Status'] == 'Closed':
+                    st.markdown("---")
+                    st.markdown("**✅ Closure Information**")
                     st.markdown(f"**IT Member:** {row['IT Member Assigned']}")
                     st.markdown(f"**Closing Date:** {row['Closing Date']}")
                     st.markdown(f"**Closing Time:** {row['Closing Time']}")
             
-            st.markdown(f"**Subject:** {row['Subject']}")
+            st.markdown("---")
+            st.markdown("**📝 Subject:**")
+            st.markdown(f"{row['Subject']}")
             
             if row['Status'] == 'Closed':
-                st.markdown(f"**Action Taken:** {row['Action Taken']}")
+                st.markdown("---")
+                st.markdown("**✔️ Action Taken:**")
+                st.markdown(f"{row['Action Taken']}")
             
             # Close ticket option for open tickets
             if row['Status'] == 'Open':
                 st.markdown("---")
+                st.markdown("**🔧 Close This Ticket**")
                 with st.form(f"close_form_{row['Ticket ID']}"):
-                    action_taken = st.text_area("Action Taken", key=f"action_{row['Ticket ID']}")
+                    action_taken = st.text_area(
+                        "Action Taken *", 
+                        key=f"action_{row['Ticket ID']}",
+                        help="Describe the action taken to resolve this ticket",
+                        height=100
+                    )
                     
-                    if st.form_submit_button("✅ Close Ticket"):
-                        if action_taken:
+                    if st.form_submit_button("✅ Close Ticket", use_container_width=True):
+                        if action_taken.strip():
                             if update_ticket_in_sheets(
                                 row['Ticket ID'],
                                 ticket_type,
                                 st.session_state.username,
                                 action_taken
                             ):
-                                st.success("Ticket closed successfully!")
+                                st.success("✅ Ticket closed successfully!")
                                 st.rerun()
                             else:
-                                st.error("Failed to close ticket.")
+                                st.error("❌ Failed to close ticket. Please try again.")
                         else:
-                            st.error("Please provide action taken details.")
+                            st.error("❌ Please provide action taken details before closing the ticket.")
 
 def main():
     """Main application"""
-    if not st.session_state.logged_in:
-        login_page()
-    else:
-        # Sidebar
-        with st.sidebar:
-            st.markdown(f"### 👤 Welcome, {st.session_state.username}!")
-            st.markdown(f"**Role:** {st.session_state.user_role.upper()}")
+    
+    # Sidebar navigation
+    with st.sidebar:
+        st.markdown("### 🎫 Nilons IT Support")
+        st.markdown("---")
+        
+        if st.session_state.logged_in:
+            st.markdown(f"### 👤 {IT_STAFF[st.session_state.username]['name']}")
+            st.markdown("**Role:** IT Staff")
             st.markdown("---")
             
-            if st.session_state.user_role == 'user':
-                page = st.radio("Navigation", ["Submit Ticket"])
-            else:
-                page = st.radio("Navigation", ["Submit Ticket", "View Tickets"])
+            page = st.radio("Navigation", ["View Tickets", "Submit New Ticket"])
             
             st.markdown("---")
             if st.button("🚪 Logout"):
                 st.session_state.logged_in = False
                 st.session_state.user_role = None
                 st.session_state.username = None
+                st.session_state.page = 'submit'
                 st.rerun()
-        
-        # Main content
-        if page == "Submit Ticket":
-            submit_ticket_page()
-        elif page == "View Tickets":
+        else:
+            st.markdown("### Navigation")
+            page = st.radio(
+                "Select",
+                ["Submit Ticket", "IT Staff Login"],
+                label_visibility="collapsed"
+            )
+            
+    
+    # Main content based on page selection
+    if st.session_state.logged_in:
+        if page == "View Tickets":
             view_tickets_page()
+        else:
+            submit_ticket_page()
+    else:
+        if page == "IT Staff Login":
+            it_login_page()
+        else:
+            submit_ticket_page()
 
 if __name__ == "__main__":
     main()
