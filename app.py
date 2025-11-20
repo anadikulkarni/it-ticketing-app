@@ -3,8 +3,12 @@ import pandas as pd
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 import json
 import os
+import io
+import base64
 
 # Page configuration
 st.set_page_config(
@@ -125,7 +129,7 @@ def get_google_sheets_client():
         creds_file = 'credentials.json'
         if not os.path.exists(creds_file):
             st.warning("⚠️ Google Sheets credentials not found. Using local storage mode.")
-            return None
+            return None, None
         
         # Define the scope
         scope = ['https://spreadsheets.google.com/feeds',
@@ -134,10 +138,14 @@ def get_google_sheets_client():
         # Load credentials
         creds = Credentials.from_service_account_file(creds_file, scopes=scope)
         client = gspread.authorize(creds)
-        return client
+        
+        # Create Drive service
+        drive_service = build('drive', 'v3', credentials=creds)
+        
+        return client, drive_service
     except Exception as e:
         st.error(f"Error connecting to Google Sheets: {e}")
-        return None
+        return None, None
 
 def get_or_create_worksheet(client, ticket_type):
     """Get or create worksheet for ticket type"""
@@ -179,7 +187,8 @@ def get_or_create_worksheet(client, ticket_type):
                 "IT Member Assigned",
                 "Closing Date",
                 "Closing Time",
-                "Action Taken"
+                "Action Taken",
+                "Image URL"
             ]
             worksheet.append_row(headers)
         
@@ -188,9 +197,85 @@ def get_or_create_worksheet(client, ticket_type):
         st.error(f"Error accessing worksheet: {e}")
         return None
 
+def upload_image_to_drive(drive_service, image_file, ticket_id):
+    """Upload image to Google Drive and return shareable URL"""
+    try:
+        # Create a folder for ticket images if it doesn't exist
+        folder_name = "Nilons Ticket Images"
+        
+        # Search for the folder
+        query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+        folders = results.get('files', [])
+        
+        if folders:
+            folder_id = folders[0]['id']
+        else:
+            # Create the folder
+            folder_metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder'
+            }
+            folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+            folder_id = folder.get('id')
+        
+        # Prepare the file for upload
+        file_metadata = {
+            'name': f"{ticket_id}_{image_file.name}",
+            'parents': [folder_id]
+        }
+        
+        # Create file content from uploaded file
+        media = MediaIoBaseUpload(
+            io.BytesIO(image_file.read()),
+            mimetype=image_file.type,
+            resumable=True
+        )
+        
+        # Upload the file
+        file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink, webContentLink'
+        ).execute()
+        
+        # Make the file publicly accessible
+        permission = {
+            'type': 'anyone',
+            'role': 'reader'
+        }
+        drive_service.permissions().create(
+            fileId=file.get('id'),
+            body=permission
+        ).execute()
+        
+        # Return the web view link
+        return file.get('webViewLink', '')
+        
+    except Exception as e:
+        st.error(f"Error uploading image to Google Drive: {e}")
+        return None
+
+def save_image_locally(image_file, ticket_id):
+    """Fallback: Save image locally and return local path"""
+    try:
+        # Create images directory if it doesn't exist
+        images_dir = "ticket_images"
+        os.makedirs(images_dir, exist_ok=True)
+        
+        # Save the file
+        file_path = os.path.join(images_dir, f"{ticket_id}_{image_file.name}")
+        with open(file_path, "wb") as f:
+            f.write(image_file.read())
+        
+        return file_path
+    except Exception as e:
+        st.error(f"Error saving image locally: {e}")
+        return None
+
 def save_ticket_to_sheets(ticket_data, ticket_type):
     """Save ticket to Google Sheets"""
-    client = get_google_sheets_client()
+    client, drive_service = get_google_sheets_client()
     worksheet = get_or_create_worksheet(client, ticket_type)
     
     if worksheet:
@@ -211,7 +296,8 @@ def save_ticket_to_sheets(ticket_data, ticket_type):
                 ticket_data.get('it_member_assigned', ''),
                 ticket_data.get('closing_date', ''),
                 ticket_data.get('closing_time', ''),
-                ticket_data.get('action_taken', '')
+                ticket_data.get('action_taken', ''),
+                ticket_data.get('image_url', '')
             ]
             worksheet.append_row(row)
             return True
@@ -238,7 +324,7 @@ def save_ticket_to_csv(ticket_data, ticket_type):
 
 def get_tickets_from_sheets(ticket_type):
     """Get tickets from Google Sheets"""
-    client = get_google_sheets_client()
+    client, drive_service = get_google_sheets_client()
     worksheet = get_or_create_worksheet(client, ticket_type)
     
     if worksheet:
@@ -261,7 +347,7 @@ def get_tickets_from_csv(ticket_type):
 
 def update_ticket_in_sheets(ticket_id, ticket_type, it_member, action_taken):
     """Update ticket status in Google Sheets"""
-    client = get_google_sheets_client()
+    client, drive_service = get_google_sheets_client()
     worksheet = get_or_create_worksheet(client, ticket_type)
     
     closing_date = datetime.now().strftime("%Y-%m-%d")
@@ -337,6 +423,18 @@ def submit_ticket_page():
         
         subject = st.text_area("Subject *", help="Detailed description of the issue", height=150)
         
+        # Image upload
+        st.markdown("---")
+        st.markdown("### 📷 Attach Image (Optional)")
+        uploaded_image = st.file_uploader(
+            "Upload a screenshot or image related to this issue",
+            type=['png', 'jpg', 'jpeg', 'gif'],
+            help="Optional: Attach an image to help describe the issue"
+        )
+        
+        if uploaded_image:
+            st.image(uploaded_image, caption="Preview of uploaded image", width=300)
+        
         submit_button = st.form_submit_button("Submit Ticket", use_container_width=True)
         
         if submit_button:
@@ -347,6 +445,27 @@ def submit_ticket_page():
                 # Generate ticket ID
                 now = datetime.now()
                 ticket_id = f"{ticket_type}-{now.strftime('%Y%m%d%H%M%S')}"
+                
+                # Handle image upload
+                image_url = ''
+                if uploaded_image:
+                    with st.spinner('Uploading image...'):
+                        client, drive_service = get_google_sheets_client()
+                        if drive_service:
+                            # Reset file pointer
+                            uploaded_image.seek(0)
+                            image_url = upload_image_to_drive(drive_service, uploaded_image, ticket_id)
+                            if image_url:
+                                st.success("✅ Image uploaded successfully!")
+                            else:
+                                st.warning("⚠️ Image upload failed, but ticket will still be created")
+                        else:
+                            # Fallback to local storage
+                            uploaded_image.seek(0)
+                            image_path = save_image_locally(uploaded_image, ticket_id)
+                            if image_path:
+                                image_url = f"local://{image_path}"
+                                st.info("📁 Image saved locally (Google Drive not configured)")
                 
                 # Create ticket data
                 ticket_data = {
@@ -365,7 +484,8 @@ def submit_ticket_page():
                     'it_member_assigned': '',
                     'closing_date': '',
                     'closing_time': '',
-                    'action_taken': ''
+                    'action_taken': '',
+                    'image_url': image_url
                 }
                 
                 # Save ticket
@@ -378,6 +498,7 @@ def submit_ticket_page():
                         </p>
                         <p style='margin: 0.5rem 0;'>Your ticket has been recorded and assigned to our IT team. 
                         Please save this Ticket ID for future reference.</p>
+                        {f"<p style='margin: 0.5rem 0;'>📷 Image attached</p>" if image_url else ""}
                     </div>
                     """, unsafe_allow_html=True)
                     st.balloons()
@@ -480,7 +601,10 @@ def view_tickets_page():
     for idx, row in df.iterrows():
         status_class = "status-open" if row['Status'] == 'Open' else "status-closed"
         
-        with st.expander(f"{row['Ticket ID']} - {row['Incident Category']} - {row['Received Date']}"):
+        # Check if image exists
+        has_image = 'Image URL' in row and row['Image URL'] and str(row['Image URL']).strip()
+        
+        with st.expander(f"🎫 {row['Ticket ID']} - {row['Incident Category']} - {row['Received Date']} {'📷' if has_image else ''}"):
             # Status badge
             st.markdown(f"<span class='{status_class}'>{row['Status']}</span>", unsafe_allow_html=True)
             st.markdown("---")
@@ -511,6 +635,38 @@ def view_tickets_page():
             st.markdown("---")
             st.markdown("**📝 Subject:**")
             st.markdown(f"{row['Subject']}")
+            
+            # Display image if exists
+            if has_image:
+                st.markdown("---")
+                st.markdown("**📷 Attached Image:**")
+                image_url = str(row['Image URL']).strip()
+                
+                if image_url.startswith('local://'):
+                    # Local file
+                    local_path = image_url.replace('local://', '')
+                    if os.path.exists(local_path):
+                        try:
+                            st.image(local_path, caption="Ticket Image", use_container_width=True)
+                        except:
+                            st.error("Unable to load local image")
+                    else:
+                        st.warning("Local image file not found")
+                else:
+                    # Google Drive link
+                    col_img1, col_img2 = st.columns([3, 1])
+                    with col_img1:
+                        st.markdown(f"[🔗 View Image in Browser]({image_url})")
+                    with col_img2:
+                        if st.button("👁️ Show Preview", key=f"img_{row['Ticket ID']}"):
+                            # Extract file ID from Google Drive URL and display
+                            try:
+                                # Convert view link to direct image link
+                                if 'drive.google.com' in image_url:
+                                    # Try to display using iframe
+                                    st.markdown(f'<iframe src="{image_url}" width="100%" height="400"></iframe>', unsafe_allow_html=True)
+                            except:
+                                st.info("Click the link above to view the image")
             
             if row['Status'] == 'Closed':
                 st.markdown("---")
@@ -573,7 +729,6 @@ def main():
                 ["Submit Ticket", "IT Staff Login"],
                 label_visibility="collapsed"
             )
-            
     
     # Main content based on page selection
     if st.session_state.logged_in:

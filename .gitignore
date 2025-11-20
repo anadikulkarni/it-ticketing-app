@@ -4,6 +4,9 @@ credentials.json
 # Ticket data
 *.csv
 
+# Image storage
+ticket_images/
+
 # Python
 __pycache__/
 *.py[cod]

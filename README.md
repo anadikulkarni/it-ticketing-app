@@ -5,9 +5,11 @@ A professional ticketing application for IT support with role-based access contr
 ## Features
 
 - **Public Ticket Submission**: Users can submit tickets without logging in
+- **Image Upload**: Optional image attachments with each ticket (stored in Google Drive)
 - **IT Staff Portal**: Secure login for IT staff to manage tickets
 - **Two Ticket Types**: SAP and Botree tickets
 - **Google Sheets Integration**: Automatic synchronization with Google Sheets
+- **Google Drive Integration**: Automatic image storage with shareable links
 - **Professional UI**: Clean, modern interface suitable for enterprise use
 - **Real-time Updates**: Live ticket status management
 - **Comprehensive Tracking**: Tracks all ticket details, timestamps, and actions
@@ -17,11 +19,13 @@ A professional ticketing application for IT support with role-based access contr
 
 ### Public Users (No Login Required)
 - Submit new tickets for SAP or Botree systems
+- Upload optional images with tickets (screenshots, photos, etc.)
 - View ticket submission confirmation with Ticket ID
 - All submissions are automatically recorded
 
 ### IT Staff (Login Required)
 - View all tickets (SAP and Botree)
+- View attached images with a preview button
 - Filter tickets by status (Open/Closed)
 - Close tickets and add action taken
 - All closures are automatically timestamped and assigned to the IT member
@@ -91,18 +95,20 @@ streamlit run app.py
 6. SS/DB/DP Code
 7. City
 8. State
+9. Image Upload (screenshot or photo)
 
 ### Auto-Generated Fields:
-9. Ticket ID (format: SAP-YYYYMMDDHHMMSS or Botree-YYYYMMDDHHMMSS)
-10. Received Date
-11. Received Time
-12. Status (Open/Closed)
+10. Ticket ID (format: SAP-YYYYMMDDHHMMSS or Botree-YYYYMMDDHHMMSS)
+11. Received Date
+12. Received Time
+13. Status (Open/Closed)
+14. Image URL (Google Drive link or local path)
 
 ### IT-Filled Fields (when closing):
-13. IT Member Assigned (automatically captures who closed the ticket)
-14. Closing Date (auto-generated)
-15. Closing Time (auto-generated)
-16. Action Taken
+15. IT Member Assigned (automatically captures who closed the ticket)
+16. Closing Date (auto-generated)
+17. Closing Time (auto-generated)
+18. Action Taken
 
 ## Google Sheets Structure
 
@@ -110,13 +116,38 @@ The application creates separate worksheets for each ticket type:
 - "SAP Tickets" worksheet
 - "Botree Tickets" worksheet
 
-Each worksheet contains all the fields listed above in columns.
+Each worksheet contains the following columns:
+1. Ticket ID
+2. Type of Query
+3. SS/DB/DP Name
+4. SS/DB/DP Code
+5. City
+6. State
+7. Incident Category
+8. Subject
+9. Call Received From
+10. Received Date
+11. Received Time
+12. Status
+13. IT Member Assigned
+14. Closing Date
+15. Closing Time
+16. Action Taken
+17. Image URL (Google Drive shareable link)
+
+## Google Drive Structure
+
+Images are automatically uploaded to a folder named "Nilons Ticket Images" in Google Drive:
+- Each image is named with the ticket ID and original filename
+- Images are set to public viewing (anyone with the link can view)
+- URLs are stored in the Google Sheet for easy access
 
 ## Fallback Mode
 
-If Google Sheets credentials are not configured, the application automatically falls back to local CSV storage:
-- `sap_tickets.csv`
-- `botree_tickets.csv`
+If Google Sheets credentials are not configured, the application automatically falls back to local storage:
+- Ticket data: `sap_tickets.csv` and `botree_tickets.csv`
+- Images: `ticket_images/` directory
+- Image references stored as local paths in CSV files
 
 ## Incident Categories
 
@@ -172,8 +203,9 @@ Update the `spreadsheet_name` variable in the `get_or_create_worksheet()` functi
 2. Select ticket type (SAP or Botree)
 3. Fill in required fields (Type of Query, SS/DB/DP Name, Incident Category, Subject, Call Received From)
 4. Optionally fill in City, State, SS/DB/DP Code
-5. Submit ticket
-6. Note the Ticket ID for future reference
+5. Optionally upload an image (PNG, JPG, JPEG, or GIF)
+6. Submit ticket
+7. Note the Ticket ID for future reference
 
 ### For IT Staff:
 1. Click "IT Staff Login" in the sidebar
@@ -181,8 +213,9 @@ Update the `spreadsheet_name` variable in the `get_or_create_worksheet()` functi
 3. Navigate to "View Tickets"
 4. Select ticket type and filter by status
 5. Expand ticket to view details
-6. Enter action taken and close the ticket
-7. System automatically records IT member, closing date, and time
+6. Click "View Image" button if an image is attached (📷 icon in ticket title)
+7. Enter action taken and close the ticket
+8. System automatically records IT member, closing date, and time
 
 ## Troubleshooting
 

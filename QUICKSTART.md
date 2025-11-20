@@ -97,10 +97,17 @@ streamlit run app.py
    - City
    - State
 
-5. **Submit the Ticket**
+5. **Optional: Attach an Image**
+   - Click "Browse files" to upload a screenshot or photo
+   - Supported formats: PNG, JPG, JPEG, GIF
+   - Preview will appear before submission
+   - Image will be automatically uploaded to Google Drive
+
+6. **Submit the Ticket**
    - Click "Submit Ticket"
    - Note your **Ticket ID** for future reference
    - The ticket is automatically timestamped
+   - Image URL is stored in the system
 
 ### For IT Staff
 
@@ -112,8 +119,15 @@ streamlit run app.py
    - Navigate to "View Tickets"
    - Select ticket type (SAP or Botree)
    - Filter by status (All/Open/Closed)
+   - 📷 icon indicates tickets with attached images
 
-3. **Close a Ticket**
+3. **View Attached Images**
+   - Expand the ticket
+   - Look for "Attached Image" section
+   - Click "View Image in Browser" to open in new tab
+   - Click "Show Preview" to display inline
+
+4. **Close a Ticket**
    - Expand an open ticket
    - Scroll to the bottom
    - Enter "Action Taken" description
@@ -122,7 +136,7 @@ streamlit run app.py
      - Your username
      - Closing date and time
 
-4. **Submit Tickets**
+5. **Submit Tickets**
    - IT staff can also submit tickets via "Submit New Ticket"
 
 ---
@@ -180,6 +194,7 @@ streamlit run app.py
 - SS/DB/DP Code
 - City
 - State
+- Image Upload (PNG, JPG, JPEG, GIF)
 
 ### Auto-Generated:
 - Ticket ID
@@ -187,6 +202,7 @@ streamlit run app.py
 - Status (Open → Closed)
 - IT Member Assigned (on close)
 - Closing Date & Time (on close)
+- Image URL (if image uploaded)
 
 ---
 
@@ -194,6 +210,8 @@ streamlit run app.py
 
 ✅ **No Login for Users** - Quick and easy ticket submission  
 🔐 **Secure IT Portal** - Authentication required for ticket management  
+📷 **Image Upload** - Attach screenshots or photos to tickets  
+☁️ **Cloud Storage** - Images stored in Google Drive with shareable links  
 📊 **Real-time Sync** - Automatic Google Sheets integration  
 📋 **Two Systems** - Support for both SAP and Botree  
 🎫 **Unique Ticket IDs** - Timestamp-based tracking  
@@ -223,3 +241,7 @@ For Google Sheets issues:
 3. ✅ Customize IT staff accounts
 4. ✅ Update incident categories if needed
 5. ✅ Deploy to production server
+6. ✅ Share the URL with your team
+7. ✅ Train IT staff on ticket management
+
+Enjoy your new ticketing system! 🎉
